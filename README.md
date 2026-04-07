@@ -28,6 +28,19 @@ This project is a mini RL-style security environment where an agent investigates
 
 Final `score` is the mean of task scores.
 
+### Reward Design (Real-World Utility)
+
+The environment now uses shaped rewards to model realistic SOC trade-offs:
+
+- `+15` for strong aggregation-based investigation (`GROUP BY ip` over failed logs)
+- `+8` for useful failed-login investigation queries
+- `+100` for correctly blocking the confirmed malicious IP
+- `-20` for blocking non-malicious IPs without evidence
+- `-60` and episode termination for false positives that block IPs seen with successful traffic
+- small per-step penalty to encourage efficient incident response
+
+This encourages agents to investigate first, mitigate second, and avoid harmful over-blocking.
+
 ### Local Setup
 
 ```bash

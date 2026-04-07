@@ -2,6 +2,7 @@ import sqlite3
 
 
 HACKER_IP = "192.168.1.50"
+SUSPICIOUS_IP = "192.168.1.77"
 
 
 def init_db():
@@ -30,6 +31,12 @@ def init_db():
         ("192.168.1.3", "failed"),
         ("192.168.1.4", "success"),
         ("192.168.1.5", "failed"),
+        ("192.168.1.6", "success"),
+        ("192.168.1.7", "success"),
+        (SUSPICIOUS_IP, "success"),
+        (SUSPICIOUS_IP, "failed"),
+        (SUSPICIOUS_IP, "failed"),
+        (SUSPICIOUS_IP, "failed"),
     ]
 
     # Add hacker multiple failed attempts

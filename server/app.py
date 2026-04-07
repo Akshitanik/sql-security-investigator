@@ -19,6 +19,12 @@ def reset():
     return obs.dict()
 
 
+@app.post("/reset")
+def reset_post():
+    obs = env.reset()
+    return obs.dict()
+
+
 @app.get("/state")
 def state():
     obs = env.state()

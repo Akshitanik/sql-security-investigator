@@ -42,13 +42,27 @@ class Evaluator:
                 query="SELECT ip, COUNT(*) FROM access_logs WHERE status='failed' GROUP BY ip ORDER BY COUNT(*) DESC"
             )
         )
-        return 1.0 if "192.168.1.50" in obs.db_output else 0.0
+        # Medium requires ranking evidence where hacker should appear as dominant offender.
+        return 1.0 if "192.168.1.50" in obs.db_output and "5" in obs.db_output else 0.0
 
     def grade_hard(self, env: SecurityEnv) -> float:
         env.reset()
-        env.step(SQLAction(query="SELECT ip, COUNT(*) FROM access_logs WHERE status='failed' GROUP BY ip"))
-        obs = env.step(SQLAction(query="INSERT INTO firewall (blocked_ip) VALUES ('192.168.1.50')"))
-        return 1.0 if obs.done else 0.0
+        investigation = env.step(
+            SQLAction(
+                query="SELECT ip, COUNT(*) FROM access_logs WHERE status='failed' GROUP BY ip ORDER BY COUNT(*) DESC"
+            )
+        )
+        mitigation = env.step(SQLAction(query="INSERT INTO firewall (blocked_ip) VALUES ('192.168.1.50')"))
+
+        hard_score = 0.0
+        if "192.168.1.50" in investigation.db_output:
+            hard_score += 0.4
+
+        # Strict mitigation: done=True and no signs of false-positive penalty.
+        if mitigation.done and "Reward: -60" not in mitigation.message:
+            hard_score += 0.6
+
+        return round(min(max(hard_score, 0.0), 1.0), 2)
 
 
 if __name__ == "__main__":
