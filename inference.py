@@ -4,22 +4,22 @@ from openai import OpenAI
 from env.models import SQLAction
 from server.app import env
 
+# Env vars required by hackathon: defaults only for API_BASE_URL and MODEL_NAME (not HF_TOKEN).
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.2-3B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
 
 def _get_client() -> OpenAI:
-    api_base_url = os.getenv("API_BASE_URL")
-    model_name = os.getenv("MODEL_NAME")
-    hf_token = os.getenv("HF_TOKEN")
+    if not HF_TOKEN:
+        raise ValueError("Set HF_TOKEN before running inference.py (no default for security).")
 
-    if not api_base_url or not model_name or not hf_token:
-        raise ValueError("Set API_BASE_URL, MODEL_NAME, and HF_TOKEN before running inference.py")
-
-    # OpenAI-compatible client required by hackathon instructions.
-    return OpenAI(base_url=api_base_url, api_key=hf_token)
+    return OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 
 def run():
     client = _get_client()
-    model_name = os.getenv("MODEL_NAME")
+    model_name = MODEL_NAME
     fallback_queries = [
         "SELECT ip, COUNT(*) FROM access_logs WHERE status='failed' GROUP BY ip ORDER BY COUNT(*) DESC",
         "INSERT INTO firewall (blocked_ip) VALUES ('192.168.1.50')",

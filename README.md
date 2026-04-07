@@ -51,10 +51,10 @@ python -m graders.evaluator
 
 Example:
 
-```bash
-set API_BASE_URL=https://your-openai-compatible-endpoint/v1
-set MODEL_NAME=gpt-4o-mini
-set HF_TOKEN=your_token_here
+```powershell
+$env:API_BASE_URL="https://your-openai-compatible-endpoint/v1"
+$env:MODEL_NAME="gpt-4o-mini"
+$env:HF_TOKEN="your_token_here"
 python inference.py
 ```
 
