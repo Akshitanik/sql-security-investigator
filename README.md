@@ -48,6 +48,7 @@ python -m graders.evaluator
 - `API_BASE_URL`
 - `MODEL_NAME`
 - `HF_TOKEN`
+- `LOCAL_IMAGE_NAME` (optional; only needed if using docker-image-based env loading)
 
 Example:
 
@@ -57,6 +58,12 @@ $env:MODEL_NAME="gpt-4o-mini"
 $env:HF_TOKEN="your_token_here"
 python inference.py
 ```
+
+Structured stdout emitted by `inference.py`:
+
+- `[START] task=<task_name> env=<benchmark> model=<model_name>`
+- `[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>`
+- `[END] success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>`
 
 ### Docker
 
