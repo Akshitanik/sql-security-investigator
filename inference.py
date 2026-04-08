@@ -1,16 +1,13 @@
 """
 SQL Security Investigator — Inference Script
 =============================================
-Runs 3 tasks (easy / medium / hard) against the live FastAPI environment server
+Runs 3 tasks (easy / medium / hard) against the local SecurityEnv environment
 and emits structured stdout logs in the required OpenEnv format.
 
 Required environment variables:
   API_BASE_URL   — LLM API endpoint  (default: HuggingFace router)
   MODEL_NAME     — Model identifier   (default: Llama-3.2-3B-Instruct)
   HF_TOKEN       — HuggingFace / API key (REQUIRED)
-
-Optional:
-  ENV_SERVER_URL — Base URL of the running env server (default: http://localhost:8000)
 
 Stdout format (one set per task):
   [START] task=<task_name> env=<benchmark> model=<model_name>
@@ -21,18 +18,18 @@ Stdout format (one set per task):
 import asyncio
 import os
 import textwrap
+import time
 from typing import List, Optional
 
-import httpx
+from env.environment import SecurityEnv
+from env.models import SQLAction, SQLObservation
 from openai import OpenAI
 
 # ── Required environment variables ────────────────────────────────────────────
 API_BASE_URL: str = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME: str   = os.getenv("MODEL_NAME",   "meta-llama/Llama-3.2-3B-Instruct")
-HF_TOKEN: Optional[str] = os.getenv("HF_TOKEN")
 
 # ── Optional / infrastructure ─────────────────────────────────────────────────
-ENV_SERVER_URL: str = os.getenv("ENV_SERVER_URL", "http://localhost:8000")
 BENCHMARK: str      = "sql-security-investigator"
 
 # ── Task definitions ──────────────────────────────────────────────────────────
@@ -134,7 +131,6 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
 
 # ── LLM helper ────────────────────────────────────────────────────────────────
 def _ask_llm(
-    client: OpenAI,
     task_desc: str,
     obs_message: str,
     db_output: str,
@@ -158,6 +154,8 @@ def _ask_llm(
     """).strip()
 
     try:
+        # Create client here to ensure it uses the latest HF_TOKEN injected by the runner
+        client = OpenAI(base_url=API_BASE_URL, api_key=os.environ.get("HF_TOKEN", "dummy"))
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
@@ -194,8 +192,6 @@ def _extract_reward(message: str) -> float:
 # ── Single-task runner ─────────────────────────────────────────────────────────
 async def run_task(
     task: dict,
-    client: OpenAI,
-    http: httpx.AsyncClient,
 ) -> float:
     """
     Run one task episode.  Emits [START] / [STEP]* / [END].
@@ -211,16 +207,15 @@ async def run_task(
     success     = False
     history: List[str] = []
 
+    env = SecurityEnv()
     log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
 
     try:
         # ── Reset ──────────────────────────────────────────────────────────────
-        resp = await http.post("/reset")
-        resp.raise_for_status()
-        obs         = resp.json()
-        obs_message = obs.get("message", "")
-        db_output   = obs.get("db_output", "")
-        done        = bool(obs.get("done", False))
+        obs = env.reset()
+        obs_message = obs.message
+        db_output   = obs.db_output
+        done        = obs.done
 
         # ── Step loop ──────────────────────────────────────────────────────────
         for step in range(1, max_steps + 1):
@@ -229,24 +224,21 @@ async def run_task(
 
             # Get LLM action (with fallback on failure / empty response)
             error: Optional[str] = None
-            query = _ask_llm(client, task_desc, obs_message, db_output, step, history)
+            query = _ask_llm(task_desc, obs_message, db_output, step, history)
 
             if not query:
                 query = fallbacks[min(step - 1, len(fallbacks) - 1)]
                 error = "LLM returned empty response; using fallback query"
 
-            # Execute step against the environment server
             try:
-                step_resp = await http.post("/step", json={"query": query})
-                step_resp.raise_for_status()
-                obs = step_resp.json()
+                obs = env.step(SQLAction(query=query))
             except Exception as exc:
                 error = str(exc)
-                obs   = {"message": f"HTTP error: {exc}", "db_output": "", "done": False}
+                obs = SQLObservation(db_output="", message=f"Runtime error: {exc}", done=False)
 
-            obs_message = obs.get("message", "")
-            db_output   = obs.get("db_output", "")
-            done        = bool(obs.get("done", False))
+            obs_message = obs.message
+            db_output   = obs.db_output
+            done        = obs.done
             reward      = _extract_reward(obs_message)
 
             rewards.append(reward)
@@ -272,24 +264,18 @@ async def run_task(
         positive_reward = sum(r for r in rewards if r > 0)
         score = min(positive_reward / _MAX_REWARD, 1.0)
 
+    score = max(0.01, min(0.99, score))
     log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
     return score
 
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
+# Removed _wait_for_hf_token since we just read it locally during the first LLM call.
+
 async def main() -> None:
-    if not HF_TOKEN:
-        raise ValueError(
-            "HF_TOKEN environment variable is required. "
-            "Set it to your HuggingFace API key before running inference.py."
-        )
-
-    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
-
-    async with httpx.AsyncClient(base_url=ENV_SERVER_URL, timeout=30.0) as http:
-        for task in TASKS:
-            score = await run_task(task, client, http)
-            print(f"[DEBUG] Completed task={task['name']} score={score:.2f}", flush=True)
+    for task in TASKS:
+        score = await run_task(task)
+        print(f"[DEBUG] Completed task={task['name']} score={score:.2f}", flush=True)
 
 
 if __name__ == "__main__":

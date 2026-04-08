@@ -3,7 +3,7 @@ version: "1.0.0"
 description: "AI Agent for SQL-based security forensic analysis and threat neutralization."
 entrypoint: "server.app:app"
 env_type: "python"
-port: 8000
+port: 7860
 
 tasks:
   - name: "sql-easy-detect"
