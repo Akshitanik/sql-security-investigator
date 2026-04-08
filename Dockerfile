@@ -14,7 +14,9 @@ COPY env/ ./env/
 COPY agent/ ./agent/
 COPY server/ ./server/
 COPY graders/ ./graders/
+COPY client/ ./client/
 COPY openenv.yaml ./
+COPY inference.py ./
 
 # Expose the FastAPI port
 EXPOSE 8000

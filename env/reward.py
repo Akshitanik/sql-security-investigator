@@ -1,4 +1,4 @@
-HACKER_IP = "192.168.1.50"
+from .scenarios import HACKER_IP
 
 
 def calculate_reward(conn, last_query: str):
