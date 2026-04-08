@@ -1,3 +1,12 @@
+---
+title: Sql Security Investigator
+emoji: 🔐
+colorFrom: red
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 ## SQL Security Investigator (OpenEnv Hackathon)
 
 A mini RL-style security environment where an LLM agent investigates SQL access logs,
