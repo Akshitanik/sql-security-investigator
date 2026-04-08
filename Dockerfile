@@ -19,7 +19,7 @@ COPY openenv.yaml ./
 COPY inference.py ./
 
 # Expose the FastAPI port
-EXPOSE 8000
+EXPOSE 7860
 
 # Start the server
-CMD ["python", "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
