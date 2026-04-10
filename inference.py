@@ -237,10 +237,11 @@ async def run_task(task: dict) -> float:
         debug_log(f"run_task({task_name}) raised: {exc}")
 
     if success:
-        score = 1.0
+        score = 0.99
     else:
         positive_reward = sum(reward for reward in rewards if reward > 0)
-        score = max(0.0, min(0.99, positive_reward / _MAX_REWARD))
+        raw_score = positive_reward / _MAX_REWARD if _MAX_REWARD else 0.0
+        score = max(0.01, min(0.99, raw_score))
 
     log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
     return score
