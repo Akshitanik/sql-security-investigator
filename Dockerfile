@@ -1,4 +1,4 @@
- FROM python:3.12-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -17,6 +17,9 @@ COPY graders/ ./graders/
 COPY client/ ./client/
 COPY openenv.yaml ./
 COPY inference.py ./
+COPY README.md ./
+COPY pyproject.toml ./
+COPY uv.lock ./
 
 # Expose the FastAPI port
 EXPOSE 7860

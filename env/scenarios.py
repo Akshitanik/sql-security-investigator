@@ -6,7 +6,7 @@ SUSPICIOUS_IP = "192.168.1.77"
 
 
 def init_db():
-    conn = sqlite3.connect(":memory:")
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
     cursor = conn.cursor()
 
     # Create tables

@@ -1,6 +1,7 @@
 from .models import SQLAction, SQLObservation
 from .scenarios import init_db, HACKER_IP
 from .reward import calculate_reward
+from openenv.core.env_server.types import EnvironmentMetadata
 
 
 class SecurityEnv:
@@ -13,16 +14,20 @@ class SecurityEnv:
             db_output="",
             message="Environment not initialized. Call reset().",
             done=False,
+            reward=None,
         )
 
     def reset(self):
+        if self.conn is not None:
+            self.conn.close()
         self.conn = init_db()
         self.steps = 0
 
         self.last_observation = SQLObservation(
             db_output="",
             message="Database initialized. Investigate logs.",
-            done=False
+            done=False,
+            reward=None,
         )
         return self.last_observation
 
@@ -31,7 +36,25 @@ class SecurityEnv:
             self.reset()
         return self.last_observation
 
+    def get_metadata(self):
+        return EnvironmentMetadata(
+            name="sql-security-investigator",
+            description="AI Agent for SQL-based security forensic analysis and threat neutralization.",
+            version="1.0.0",
+            readme_content=None,
+            author="Akshita",
+        )
+
+    async def reset_async(self):
+        return self.reset()
+
+    async def state_async(self):
+        return self.state()
+
     def step(self, action: SQLAction):
+        if self.conn is None:
+            self.reset()
+
         self.steps += 1
         cursor = self.conn.cursor()
 
@@ -43,7 +66,8 @@ class SecurityEnv:
                 self.last_observation = SQLObservation(
                     db_output="",
                     message="Only SELECT and INSERT allowed",
-                    done=False
+                    done=False,
+                    reward=-2,
                 )
                 return self.last_observation
 
@@ -61,7 +85,8 @@ class SecurityEnv:
             self.last_observation = SQLObservation(
                 db_output="",
                 message=f"SQL Error: {str(e)}",
-                done=False
+                done=False,
+                reward=-2,
             )
             return self.last_observation
 
@@ -75,6 +100,15 @@ class SecurityEnv:
         self.last_observation = SQLObservation(
             db_output=db_output,
             message=f"Reward: {reward}",
-            done=done
+            done=done,
+            reward=reward,
         )
         return self.last_observation
+
+    async def step_async(self, action: SQLAction):
+        return self.step(action)
+
+    def close(self):
+        if self.conn is not None:
+            self.conn.close()
+            self.conn = None
